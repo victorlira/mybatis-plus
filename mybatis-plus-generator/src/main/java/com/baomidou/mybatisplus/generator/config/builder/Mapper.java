@@ -20,6 +20,7 @@ import com.baomidou.mybatisplus.generator.config.ConstVal;
 import com.baomidou.mybatisplus.generator.config.StrategyConfig;
 import com.baomidou.mybatisplus.generator.config.po.TableInfo;
 import com.baomidou.mybatisplus.generator.function.ConverterFileName;
+import com.baomidou.mybatisplus.generator.index.IGenerateMapperMethodHandler;
 import com.baomidou.mybatisplus.generator.util.ClassUtils;
 import lombok.Getter;
 import org.apache.ibatis.cache.Cache;
@@ -29,7 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -160,6 +163,13 @@ public class Mapper implements ITemplate {
         return this.cache == null ? LoggingCache.class : this.cache;
     }
 
+    /**
+     * Mapper层方法生成
+     *
+     * @since 3.5.10
+     */
+    private IGenerateMapperMethodHandler generateMapperMethodHandler;
+
     @Override
     @NotNull
     public Map<String, Object> renderData(@NotNull TableInfo tableInfo) {
@@ -179,6 +189,9 @@ public class Mapper implements ITemplate {
         data.put("superMapperClass", ClassUtils.getSimpleName(this.superClass));
         data.put("generateMapperXml", this.generateMapperXml);
         data.put("generateMapper", this.generateMapper);
+        Map<String, List<String>> methodList = generateMapperMethodHandler == null ? Collections.emptyMap() : generateMapperMethodHandler.getMethodList(tableInfo);
+        data.put("mapperMethodMap", methodList);
+        data.put("enableGenerateIndexMethod", !methodList.isEmpty());
         return data;
     }
 
@@ -393,6 +406,18 @@ public class Mapper implements ITemplate {
          */
         public Builder disableMapperXml() {
             this.mapper.generateMapperXml = false;
+            return this;
+        }
+
+        /**
+         * Mapper层方法生成处理器
+         *
+         * @param generateMapperMethodHandler 处理器
+         * @return this
+         * @since 3.5.10
+         */
+        public Builder generateMapperMethodHandler(IGenerateMapperMethodHandler generateMapperMethodHandler) {
+            this.mapper.generateMapperMethodHandler = generateMapperMethodHandler;
             return this;
         }
 

@@ -2,6 +2,18 @@ package ${package.Mapper};
 
 import ${package.Entity}.${entity};
 import ${superMapperClassPackage};
+
+#if(${enableGenerateIndexMethod})
+import java.util.List;
+import com.baomidou.mybatisplus.core.toolkit.ObjectUtils;
+    #if(${kotlin})
+import com.baomidou.mybatisplus.extension.kotlin.KtQueryWrapper
+import com.baomidou.mybatisplus.extension.kotlin.KtUpdateWrapper
+    #else
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+    #end
+#end
+
 #if(${mapperAnnotationClass})
 import ${mapperAnnotationClass.name};
 #end
@@ -18,9 +30,17 @@ import ${mapperAnnotationClass.name};
 @${mapperAnnotationClass.simpleName}
 #end
 #if(${kotlin})
-interface ${table.mapperName} : ${superMapperClass}<${entity}>
+interface ${table.mapperName} : ${superMapperClass}<${entity}> {
 #else
 public interface ${table.mapperName} extends ${superMapperClass}<${entity}> {
-
-}
 #end
+
+#foreach($map in ${mapperMethodMap.entrySet()})
+  #foreach($method in ${map.value})
+    /**
+     * generate by ${map.key}
+     */
+    ${method}
+   #end
+#end
+}
