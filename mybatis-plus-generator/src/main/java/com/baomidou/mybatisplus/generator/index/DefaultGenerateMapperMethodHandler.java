@@ -16,6 +16,7 @@
 package com.baomidou.mybatisplus.generator.index;
 
 import com.baomidou.mybatisplus.generator.config.GlobalConfig;
+import com.baomidou.mybatisplus.generator.config.builder.Entity;
 import com.baomidou.mybatisplus.generator.config.po.TableField;
 import com.baomidou.mybatisplus.generator.config.po.TableInfo;
 import com.baomidou.mybatisplus.generator.jdbc.DatabaseMetaDataWrapper;
@@ -29,12 +30,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 使用Lambda方式生成索引方法
+ * 按字符串或者字符串常量方法生成查询条件
  *
  * @author nieqiurong
+ * @see Entity.Builder#enableColumnConstant()
  * @since 3.5.10
  */
-public class DefaultGenerateMapperLambdaMethodHandler extends AbstractMapperMethodHandler {
+public class DefaultGenerateMapperMethodHandler extends AbstractMapperMethodHandler {
 
     @Override
     public Map<String, List<String>> getMethodList(TableInfo tableInfo) {
@@ -42,21 +44,19 @@ public class DefaultGenerateMapperLambdaMethodHandler extends AbstractMapperMeth
             .collect(Collectors.groupingBy(DatabaseMetaDataWrapper.Index::getName));
         String entityName = tableInfo.getEntityName();
         GlobalConfig globalConfig = tableInfo.getGlobalConfig();
+        Entity entity = tableInfo.getStrategyConfig().entity();
+        boolean columnConstant = entity.isColumnConstant();
         Set<Map.Entry<String, List<DatabaseMetaDataWrapper.Index>>> entrySet = indexlistMap.entrySet();
         Map<String, List<String>> result = new HashMap<>();
         for (Map.Entry<String, List<DatabaseMetaDataWrapper.Index>> entry : entrySet) {
             List<String> methodList = new ArrayList<>();
             String indexName = entry.getKey();
-//            boolean compositeKey = false;
             List<DatabaseMetaDataWrapper.Index> indexList = entry.getValue();
             int indexSize = indexList.size();
             if ("PRIMARY".equals(indexName)) {
                 if (indexSize == 1) {
-                    // skip id -> selectById
                     continue;
                 }
-//                // 复合主键
-//                compositeKey = indexList.size() > 1;
             }
             Map<String, TableField> tableFieldMap = tableInfo.getTableFieldMap();
             StringBuilder baseMethodNameBuilder = new StringBuilder();
@@ -72,11 +72,19 @@ public class DefaultGenerateMapperLambdaMethodHandler extends AbstractMapperMeth
                 baseMethodNameBuilder.append(tableField.getCapitalName());
                 if (globalConfig.isKotlin()) {
                     if (indexSize > 1) {
-                        baseWrapperBuilder.append("eq(ObjectUtils.isNotNull(").append(tableField.getPropertyName()).append(")").append(", ").append(entityName).append("::");
+                        if (columnConstant) {
+                            baseWrapperBuilder.append("eq(ObjectUtils.isNotNull(").append(tableField.getPropertyName()).append(")").append(", ").append(tableField.getName().toUpperCase());
+                        } else {
+                            baseWrapperBuilder.append("eq(ObjectUtils.isNotNull(").append(tableField.getPropertyName()).append(")").append(", ").append("\"").append(tableField.getColumnName()).append("\"");
+                        }
                     } else {
-                        baseWrapperBuilder.append("eq(").append(entityName).append("::");
+                        if (columnConstant) {
+                            baseWrapperBuilder.append("eq(").append(entityName).append(".").append(tableField.getName().toUpperCase());
+                        } else {
+                            baseWrapperBuilder.append("eq(").append("\"").append(tableField.getColumnName()).append("\"");
+                        }
                     }
-                    baseWrapperBuilder.append(tableField.getPropertyName()).append(",").append(" ").append(tableField.getPropertyName()).append(")");
+                    baseWrapperBuilder.append(",").append(" ").append(tableField.getPropertyName()).append(")");
                     argsBuilder.append(tableField.getPropertyName()).append(":").append(" ")
                         .append(KotlinTypeUtils.getStringType(tableField.getColumnType()));
                     if (i < indexSize - 1) {
@@ -86,14 +94,17 @@ public class DefaultGenerateMapperLambdaMethodHandler extends AbstractMapperMeth
                     }
                 } else {
                     if (indexSize > 1) {
-                        baseWrapperBuilder.append("eq(ObjectUtils.isNotNull(").append(tableField.getPropertyName()).append(")").append(", ").append(entityName).append("::");
+                        if (columnConstant) {
+                            baseWrapperBuilder.append("eq(ObjectUtils.isNotNull(").append(tableField.getPropertyName()).append(")").append(", ").append(tableField.getName().toUpperCase());
+                        } else {
+                            baseWrapperBuilder.append("eq(ObjectUtils.isNotNull(").append(tableField.getPropertyName()).append(")").append(", ").append("\"").append(tableField.getColumnName()).append("\"");
+                        }
                     } else {
-                        baseWrapperBuilder.append("eq(").append(entityName).append("::");
-                    }
-                    if ("boolean".equals(tableField.getPropertyType())) {
-                        baseWrapperBuilder.append("is").append(tableField.getCapitalName());
-                    } else {
-                        baseWrapperBuilder.append("get").append(tableField.getCapitalName());
+                        if (columnConstant) {
+                            baseWrapperBuilder.append("eq(").append(entityName).append(".").append(tableField.getName().toUpperCase());
+                        } else {
+                            baseWrapperBuilder.append("eq(").append("\"").append(tableField.getColumnName()).append("\"");
+                        }
                     }
                     baseWrapperBuilder.append(",").append(" ").append(tableField.getPropertyName()).append(")");
                     argsBuilder.append(tableField.getColumnType().getType()).append(" ").append(tableField.getPropertyName());
@@ -110,26 +121,26 @@ public class DefaultGenerateMapperLambdaMethodHandler extends AbstractMapperMeth
             if (globalConfig.isKotlin()) {
                 String selectByMethod = getKotlinSelectMethod(tableInfo, (indexSize > 1 || !uniqueKey),
                     "selectBy" + baseMethodName, args,
-                    "KtQueryWrapper(" + tableInfo.getEntityName() + "::class.java)." + baseWrapper);
+                    "Wrappers.query<" + tableInfo.getEntityName() + ">()." + baseWrapper);
                 String updateByMethod = getKotlinUpdateMethod(tableInfo,
                     "updateBy" + baseMethodName, "entity:" + " " + tableInfo.getEntityName() + ", " + args,
-                    "entity, KtUpdateWrapper(" + tableInfo.getEntityName() + "::class.java)." + baseWrapper);
+                    "entity, Wrappers.update<" + tableInfo.getEntityName() + ">()." + baseWrapper);
                 String deleteByMethod = getKotlinDeleteMethod(tableInfo,
                     "deleteBy" + baseMethodName, args,
-                    "KtUpdateWrapper(" + tableInfo.getEntityName() + "::class.java)." + baseWrapper);
+                    "Wrappers.update<" + tableInfo.getEntityName() + ">()." + baseWrapper);
                 methodList.add(selectByMethod);
                 methodList.add(updateByMethod);
                 methodList.add(deleteByMethod);
             } else {
                 String selectByMethod = getSelectMethod(tableInfo, (indexSize > 1 || !uniqueKey),
                     "selectBy" + baseMethodName, args,
-                    "Wrappers.<" + tableInfo.getEntityName() + ">lambdaQuery()." + baseWrapper);
+                    "Wrappers.<" + tableInfo.getEntityName() + ">query()." + baseWrapper);
                 String updateByMethod = getUpdateMethod(tableInfo,
                     "updateBy" + baseMethodName, tableInfo.getEntityName() + " entity" + ", " + args,
-                    "Wrappers.<" + tableInfo.getEntityName() + ">lambdaUpdate()." + baseWrapper);
+                    "Wrappers.<" + tableInfo.getEntityName() + ">update()." + baseWrapper);
                 String deleteByMethod = getDeleteMethod(tableInfo,
                     "deleteBy" + baseMethodName, args,
-                    "Wrappers.<" + tableInfo.getEntityName() + ">lambdaUpdate()." + baseWrapper);
+                    "Wrappers.<" + tableInfo.getEntityName() + ">update()." + baseWrapper);
                 methodList.add(selectByMethod);
                 methodList.add(updateByMethod);
                 methodList.add(deleteByMethod);

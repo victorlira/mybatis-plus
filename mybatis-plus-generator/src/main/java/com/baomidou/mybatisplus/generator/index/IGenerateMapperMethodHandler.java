@@ -34,6 +34,7 @@ public interface IGenerateMapperMethodHandler {
      * @param tableInfo 表信息
      * @return 索引方法
      */
+    //TODO 待处理结果与导包.
     Map<String, List<String>> getMethodList(TableInfo tableInfo);
 
 }
